@@ -1,0 +1,55 @@
+---
+version: 3
+
+dependencies:
+  galaxy: requirements.yml
+  python: requirements.txt
+  system: bindep.txt
+  ansible_core:
+    package_pip: ansible-core==2.18.10
+  ansible_runner:
+    package_pip: ansible-runner==2.4.1
+  python_interpreter:
+    package_system: "python3.11"
+    python_path: "/usr/bin/python3.11"
+
+images:
+  base_image:
+    name: registry.redhat.io/ansible-automation-platform-26/ee-minimal-rhel9:latest
+
+options:
+  package_manager_path: /usr/bin/microdnf
+
+additional_build_files:
+  - src: ansible.cfg
+    dest: configs
+
+additional_build_steps:
+  append_base: |
+    RUN echo "Target architecture is: $TARGETARCH"
+    RUN curl -o /etc/yum.repos.d/hashicorp.repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+    RUN rpm -i https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+    RUN echo "Target architecture is: $TARGETARCH"
+
+    RUN microdnf install -y bash curl-minimal ca-certificates tar gzip unzip && microdnf clean all
+    RUN rpm -q packages-microsoft-prod \
+    || rpm -Uvh https://packages.microsoft.com/config/rhel/9.0/packages-microsoft-prod.rpm
+    RUN microdnf install -y azure-cli && microdnf clean all
+
+    RUN az version
+
+  prepend_galaxy: |
+    COPY _build/configs/ansible.cfg /etc/ansible/ansible.cfg
+    ENV ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_URL=https://console.redhat.com/api/automation-hub/content/published/
+    ENV ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_AUTH_URL=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+    ARG ANSIBLE_GALAXY_SERVER_AUTOMATION_HUB_TOKEN
+
+  append_final: |
+    RUN if ! command -v ibmcloud >/dev/null 2>&1; then \
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh ; \
+        fi
+    RUN ibmcloud --version
+    RUN oci --version
+
+    RUN rm -f /bin/python3
+    RUN ln -s /bin/python3.11 /bin/python3

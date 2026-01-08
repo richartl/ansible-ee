@@ -1,0 +1,6 @@
+bash
+curl-minimal
+ca-certificates
+tar
+gzip
+unzip

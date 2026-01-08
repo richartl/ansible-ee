@@ -1,0 +1,7 @@
+# AWS
+botocore
+boto3
+
+# OCI
+oci
+oci-cli
